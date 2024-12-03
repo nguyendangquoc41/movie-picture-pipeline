@@ -1,23 +1,27 @@
 name: Backend Continuous Deployment
+
 on:
   push:
     branches:
       - main
+
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
+      # Checkout source code
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set up Docker
-        uses: docker/setup-buildx-action@v2
-
+      # Build Docker image (chuyển đúng thư mục)
       - name: Build Docker image
-        run: docker build -t backend:latest .
+        run: docker build -t backend:latest ./starter/backend
 
+      # Push Docker image to registry (if needed)
       - name: Push Docker image to registry (if needed)
         run: docker push backend:latest
 
-      - name: Deploy to Kubernetes (if needed)
-        run: kubectl apply -f k8s/deployment.yaml
+      # Deploy to Kubernetes (if needed)
+      - name: Deploy to Kubernetes
+        run: kubectl apply -f starter/backend/k8s/deployment.yaml

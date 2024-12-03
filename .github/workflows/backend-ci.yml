@@ -12,17 +12,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Move to the backend directory
-      - name: Change directory to backend
-        working-directory: ./starter/backend
-        run: pwd
-
-      # Build Docker image
+      # Build Docker image (chuyển đúng thư mục)
       - name: Build Docker image
-        working-directory: ./starter/backend
-        run: docker build -t backend:latest .
+        run: docker build -t backend:latest ./starter/backend
 
-      # Run tests
+      # Run tests inside Docker container
       - name: Run tests inside Docker container
-        run: |
-          docker run --rm backend:latest pytest /app/test_app.py
+        run: docker run --rm backend:latest pytest /app/test_app.py
