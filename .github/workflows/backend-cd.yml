@@ -16,10 +16,16 @@ jobs:
           node-version: 16
 
       - name: Install dependencies
-        run: npm install
+        run: |
+          cd backend
+          npm install
 
       - name: Run Tests
-        run: npm run test
+        run: |
+          cd backend
+          npm run test
 
       - name: Build Docker image
-        run: docker build -t backend:latest .
+        run: |
+          cd backend
+          docker build -t backend:latest .
