@@ -1,45 +1,53 @@
 name: Backend Continuous Integration
+
 on:
   pull_request:
+
 jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
+      # Check out the code
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+      # Set up Python
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
-          node-version: 16
+          python-version: '3.9'
 
+      # Install dependencies
       - name: Install dependencies
         run: |
-          cd backend
-          npm install
+          python -m pip install --upgrade pip
+          pip install pipenv
+          pipenv install --dev
 
+      # Run linter (flake8)
       - name: Run Linter
-        run: |
-          cd backend
-          npm run lint
+        run: pipenv run flake8 .
 
   test:
     runs-on: ubuntu-latest
     steps:
+      # Check out the code
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+      # Set up Python
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
-          node-version: 16
+          python-version: '3.9'
 
+      # Install dependencies
       - name: Install dependencies
         run: |
-          cd backend
-          npm install
+          python -m pip install --upgrade pip
+          pip install pipenv
+          pipenv install --dev
 
-      - name: Run Tests
-        run: |
-          cd backend
-          npm run test
+      # Run tests
+      - name: Run tests
+        run: pipenv run pytest
