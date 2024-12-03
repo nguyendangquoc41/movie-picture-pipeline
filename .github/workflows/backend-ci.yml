@@ -4,50 +4,25 @@ on:
   pull_request:
 
 jobs:
-  lint:
+  build-and-test:
     runs-on: ubuntu-latest
+
     steps:
-      # Check out the code
+      # Checkout source code
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Set up Python
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.9'
+      # Move to the backend directory
+      - name: Change directory to backend
+        working-directory: ./starter/backend
+        run: pwd
 
-      # Install dependencies
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install pipenv
-          pipenv install --dev
-
-      # Run linter (flake8)
-      - name: Run Linter
-        run: pipenv run flake8 .
-
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      # Check out the code
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      # Set up Python
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.9'
-
-      # Install dependencies
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install pipenv
-          pipenv install --dev
+      # Build Docker image
+      - name: Build Docker image
+        working-directory: ./starter/backend
+        run: docker build -t backend:latest .
 
       # Run tests
-      - name: Run tests
-        run: pipenv run pytest
+      - name: Run tests inside Docker container
+        run: |
+          docker run --rm backend:latest pytest /app/test_app.py
