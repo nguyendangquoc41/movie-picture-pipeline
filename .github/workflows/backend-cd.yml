@@ -4,24 +4,78 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
-  build:
+  lint:
+    name: Lint Backend Code
     runs-on: ubuntu-latest
-
     steps:
-      # Checkout source code
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v3
 
-      # Build Docker image (chuyển đúng thư mục)
-      - name: Build Docker image
-        run: docker build -t backend:latest ./starter/backend
+      - name: Install pipenv
+        run: pip install pipenv
 
-      # Push Docker image to registry (if needed)
-      - name: Push Docker image to registry (if needed)
-        run: docker push backend:latest
+      - name: Install Dependencies
+        run: pipenv install
+        working-directory: starter/backend
 
-      # Deploy to Kubernetes (if needed)
+      - name: Run Linter
+        run: pipenv run lint
+        working-directory: starter/backend
+
+  test:
+    name: Test Backend Code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Install pipenv
+        run: pip install pipenv
+
+      - name: Install Dependencies
+        run: pipenv install
+        working-directory: starter/backend
+
+      - name: Run Tests
+        run: pipenv run test
+        working-directory: starter/backend
+
+  build:
+    name: Build Backend Docker Image
+    needs:
+      - lint
+      - test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build and Push Docker Image
+        run: |
+          docker build -t ${{ secrets.ECR_BACKEND_REPO }}:${{ github.sha }} .
+          docker push ${{ secrets.ECR_BACKEND_REPO }}:${{ github.sha }}
+        working-directory: starter/backend
+
+  deploy:
+    name: Deploy Backend to Kubernetes
+    needs:
+      - build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Configure kubectl for EKS
+        run: aws eks update-kubeconfig --region ${{ secrets.AWS_REGION }} --name movie-picture-cluster
+
       - name: Deploy to Kubernetes
-        run: kubectl apply -f starter/backend/k8s/deployment.yaml
+        run: |
+          cd starter/backend/k8s
+          kustomize edit set image backend=${{ secrets.ECR_BACKEND_REPO }}:${{ github.sha }}
+          kustomize build | kubectl apply -f -

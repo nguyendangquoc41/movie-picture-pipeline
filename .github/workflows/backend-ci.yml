@@ -2,20 +2,62 @@ name: Backend Continuous Integration
 
 on:
   pull_request:
+    branches:
+      - main
+  workflow_dispatch:
 
 jobs:
-  build-and-test:
+  lint:
+    name: Lint Backend Code
     runs-on: ubuntu-latest
-
     steps:
-      # Checkout source code
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v3
 
-      # Build Docker image (chuyển đúng thư mục)
-      - name: Build Docker image
-        run: docker build -t backend:latest ./starter/backend
+      - name: Install pipenv
+        run: pip install pipenv
 
-      # Run tests inside Docker container
-      - name: Run tests inside Docker container
-        run: docker run --rm backend:latest pytest /app/test_app.py
+      - name: Install Dependencies
+        run: pipenv install
+        working-directory: starter/backend
+
+      - name: Run Linter
+        run: pipenv run lint
+        working-directory: starter/backend
+
+  test:
+    name: Test Backend Code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Install pipenv
+        run: pip install pipenv
+
+      - name: Install Dependencies
+        run: pipenv install
+        working-directory: starter/backend
+
+      - name: Run Tests
+        run: pipenv run test
+        working-directory: starter/backend
+
+  build:
+    name: Build Backend Docker Image
+    needs:
+      - lint
+      - test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build and Push Docker Image
+        run: |
+          docker build -t ${{ secrets.ECR_BACKEND_REPO }}:${{ github.sha }} .
+          docker push ${{ secrets.ECR_BACKEND_REPO }}:${{ github.sha }}
+        working-directory: starter/backend

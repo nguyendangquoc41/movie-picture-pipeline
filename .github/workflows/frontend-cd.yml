@@ -1,28 +1,87 @@
 name: Frontend Continuous Deployment
+
 on:
   push:
     branches:
       - main
+  workflow_dispatch:
+
 jobs:
-  build:
+  lint:
+    name: Lint Frontend Code
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v3
 
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: 16
+          node-version: '16'
 
-      - name: Install dependencies
-        run: npm install
-        working-directory: ./starter/frontend  # Thêm dòng này để chỉ định đúng thư mục
+      - name: Install Dependencies
+        run: npm ci
+        working-directory: starter/frontend
+
+      - name: Run Linter
+        run: npm run lint
+        working-directory: starter/frontend
+
+  test:
+    name: Test Frontend Code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+
+      - name: Install Dependencies
+        run: npm ci
+        working-directory: starter/frontend
 
       - name: Run Tests
         run: npm run test
-        working-directory: ./starter/frontend  # Thêm dòng này để chỉ định đúng thư mục
+        working-directory: starter/frontend
 
-      - name: Build Docker image
-        run: docker build -t frontend:latest .
-        working-directory: ./starter/frontend  # Thêm dòng này để chỉ định đúng thư mục
+  build:
+    name: Build Frontend Docker Image
+    needs:
+      - lint
+      - test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Build Docker Image
+        run: |
+          docker build --build-arg REACT_APP_MOVIE_API_URL=${{ secrets.MOVIE_API_URL }} \
+          -t ${{ secrets.ECR_FRONTEND_REPO }}:${{ github.sha }} .
+        working-directory: starter/frontend
+
+      - name: Push Docker Image
+        run: |
+          docker push ${{ secrets.ECR_FRONTEND_REPO }}:${{ github.sha }}
+        working-directory: starter/frontend
+
+  deploy:
+    name: Deploy Frontend to Kubernetes
+    needs:
+      - build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Configure kubectl for EKS
+        run: aws eks update-kubeconfig --region ${{ secrets.AWS_REGION }} --name movie-picture-cluster
+
+      - name: Deploy to Kubernetes
+        run: |
+          cd starter/frontend/k8s
+          kustomize edit set image frontend=${{ secrets.ECR_FRONTEND_REPO }}:${{ github.sha }}
+          kustomize build | kubectl apply -f -
