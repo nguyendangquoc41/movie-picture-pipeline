@@ -17,17 +17,17 @@ jobs:
       - name: Install Python 3.10
         run: sudo apt-get install python3.10 python3.10-venv python3.10-dev
 
-      - name: Install pipenv
-        run: pip install pipenv
-
       - name: Install Dependencies
-        run: pipenv install --dev
-        working-directory: starter/backend
-
-      - name: Check installed packages
-        run: pipenv run pip show flake8
+        run: |
+          python3 -m venv venv
+          source venv/bin/activate
+          pip install -r starter/backend/Pipfile
+          pip install flake8
         working-directory: starter/backend
 
       - name: Run Linter
-        run: pipenv run lint
+        run: |
+          source venv/bin/activate
+          flake8 .
         working-directory: starter/backend
+
