@@ -21,6 +21,10 @@ jobs:
         run: pipenv install --dev
         working-directory: starter/backend
 
+      - name: Install flake8
+        run: pipenv install flake8
+        working-directory: starter/backend
+
       - name: Run Linter
         run: pipenv run lint
         working-directory: starter/backend
