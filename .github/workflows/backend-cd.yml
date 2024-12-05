@@ -14,16 +14,20 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Install pipenv
-        run: pip install pipenv
+      - name: Install Python and pipenv
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3.10 python3.10-venv python3.10-dev
+          python3.10 -m pip install pip --upgrade
+          pip install pipenv
 
       - name: Install Dependencies
-        run: pipenv install
         working-directory: starter/backend
+        run: pipenv install --dev
 
       - name: Run Linter
-        run: pipenv run flake8 .
         working-directory: starter/backend
+        run: pipenv run flake8 .
 
   test:
     name: Test Backend Code
@@ -32,16 +36,20 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Install pipenv
-        run: pip install pipenv
+      - name: Install Python and pipenv
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3.10 python3.10-venv python3.10-dev
+          python3.10 -m pip install pip --upgrade
+          pip install pipenv
 
       - name: Install Dependencies
-        run: pipenv install
         working-directory: starter/backend
+        run: pipenv install
 
       - name: Run Tests
-        run: pipenv run test
         working-directory: starter/backend
+        run: pipenv run test
 
   build:
     name: Build Backend Docker Image
@@ -57,10 +65,10 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v1
 
       - name: Build and Push Docker Image
+        working-directory: starter/backend
         run: |
           docker build -t ${{ secrets.ECR_BACKEND_REPO }}:${{ github.sha }} .
           docker push ${{ secrets.ECR_BACKEND_REPO }}:${{ github.sha }}
-        working-directory: starter/backend
 
   deploy:
     name: Deploy Backend to Kubernetes
