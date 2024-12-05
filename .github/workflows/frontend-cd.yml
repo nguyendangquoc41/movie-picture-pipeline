@@ -1,4 +1,5 @@
 name: Frontend Continuous Deployment
+description: This workflow is triggered on pushes to the 'main' branch or manually via workflow dispatch. It handles the deployment of the frontend application, including building Docker images, pushing them to ECR, and deploying to a Kubernetes cluster.
 
 on:
   push:
