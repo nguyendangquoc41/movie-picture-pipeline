@@ -18,14 +18,24 @@ jobs:
         run: sudo apt-get install python3.10 python3.10-venv python3.10-dev
 
       - name: Install pipenv
-        run: pip install pipenv
+        run: |
+         cd starter
+         cd backend
+         pip install pipenv
+        working-directory: starter/backend
 
       - name: Install Dependencies
-        run: pipenv install --dev
+        run: |
+         cd starter
+         cd backend
+         pipenv install --dev
         working-directory: starter/backend
 
       - name: Run Linter
-        run: pipenv run flake8 .
+        run: |
+         cd starter
+         cd backend
+         pipenv run flake8 .
         working-directory: starter/backend
 
   test:
