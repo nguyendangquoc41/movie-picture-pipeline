@@ -7,15 +7,75 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
-    name: Build Backend Docker Image
+  lint:
+    name: Lint Backend Code
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
 
+      - name: Install Python and pipenv
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3.10 python3.10-venv python3.10-dev
+          python3.10 -m pip install pip --upgrade
+          pip install pipenv
+
+      - name: Install Dependencies
+        working-directory: starter/backend
+        run: pipenv install --dev
+
+      - name: Run Linter
+        working-directory: starter/backend
+        run: pipenv run flake8 .
+
+  test:
+    name: Test Backend Code
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Install Python and pipenv
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3.10 python3.10-venv python3.10-dev
+          python3.10 -m pip install pip --upgrade
+          pip install pipenv
+
+      - name: Install Dependencies
+        working-directory: starter/backend
+        run: pipenv install
+
+      - name: Run Tests
+        working-directory: starter/backend
+        run: pipenv run test
+
+  build:
+    name: Build Backend Docker Image
+    needs:
+      - lint
+      - test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+     
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v1
+        with:
+          region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR Public
+        run: |
+          aws ecr-public get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin public.ecr.aws
 
       - name: Build and Push Docker Image
         working-directory: starter/backend
@@ -25,7 +85,8 @@ jobs:
 
   deploy:
     name: Deploy Backend to Kubernetes
-    needs: build
+    needs:
+      - build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -43,16 +104,12 @@ jobs:
 
       - name: Install Kustomize
         run: |
-          curl -s https://api.github.com/repos/kubernetes-sigs/kustomize/releases/latest \
-          | grep browser_download_url \
-          | grep linux_amd64 \
-          | cut -d '"' -f 4 \
-          | wget -qi -
+          curl -s "https://api.github.com/repos/kubernetes-sigs/kustomize/releases/latest" | jq -r '.assets[] | select(.name | test("kustomize.*linux.*.tar.gz")) | .browser_download_url' | wget -i -
           tar xzf kustomize_*_linux_amd64.tar.gz
           sudo mv kustomize /usr/local/bin
 
       - name: Deploy to Kubernetes
-        working-directory: starter/backend/k8s
         run: |
+          cd starter/backend/k8s
           kustomize edit set image backend=${{ secrets.ECR_BACKEND_REPO }}:${{ github.sha }}
           kustomize build | kubectl apply -f -
