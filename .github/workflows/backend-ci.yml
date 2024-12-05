@@ -1,10 +1,15 @@
 name: Backend Continuous Integration
+description: CI pipeline for backend application including linting, testing, building, and pushing Docker images.
 
 on:
   pull_request:
     branches:
       - main
   workflow_dispatch:
+
+env:
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+  ECR_BACKEND_REPO: ${{ secrets.ECR_BACKEND_REPO }}
 
 jobs:
   lint:
@@ -13,18 +18,15 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
-
       - name: Install Python and pipenv
         run: |
           sudo apt-get update
           sudo apt-get install -y python3.10 python3.10-venv python3.10-dev
           python3.10 -m pip install pip --upgrade
           pip install pipenv
-
       - name: Install Dependencies
         working-directory: starter/backend
         run: pipenv install --dev
-
       - name: Run Linter
         working-directory: starter/backend
         run: pipenv run flake8 .
@@ -35,18 +37,15 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
-
       - name: Install Python and pipenv
         run: |
           sudo apt-get update
           sudo apt-get install -y python3.10 python3.10-venv python3.10-dev
           python3.10 -m pip install pip --upgrade
           pip install pipenv
-
       - name: Install Dependencies
         working-directory: starter/backend
         run: pipenv install
-
       - name: Run Tests
         working-directory: starter/backend
         run: pipenv run test
@@ -60,26 +59,18 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
-        
       - name: Set up AWS Credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-     
-      - name: Login to Amazon ECR
-        uses: aws-actions/amazon-ecr-login@v1
-        
-      - name: Login to Amazon ECR Public
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Login to Amazon ECR (Public and Private)
         run: |
-          aws ecr-public get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin public.ecr.aws
-        
-        with:
-          region: ${{ secrets.AWS_REGION }}
-          
+          aws ecr-public get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin public.ecr.aws
+          aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ env.ECR_BACKEND_REPO }}
       - name: Build and Push Docker Image
         working-directory: starter/backend
         run: |
-          docker build -t ${{ secrets.ECR_BACKEND_REPO }}:${{ github.sha }} .
-          docker push ${{ secrets.ECR_BACKEND_REPO }}:${{ github.sha }}
+          docker build -t ${{ env.ECR_BACKEND_REPO }}:${{ github.sha }} .
+          docker push ${{ env.ECR_BACKEND_REPO }}:${{ github.sha }}
