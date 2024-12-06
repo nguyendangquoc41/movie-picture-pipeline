@@ -1,5 +1,5 @@
 name: Frontend Continuous Deployment
-description: This workflow is triggered on pushes to the 'main' branch or manually via workflow dispatch. It handles the deployment of the frontend application, including building Docker images, pushing them to ECR, and deploying to a Kubernetes cluster.
+description: This workflow deploys the frontend application to a Kubernetes cluster, builds Docker images, pushes them to ECR, and ensures the service is accessible.
 
 on:
   push:
@@ -70,10 +70,6 @@ jobs:
         with:
           region: ${{ secrets.AWS_REGION }}
 
-      - name: Login to Amazon ECR Public
-        run: |
-          aws ecr-public get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin public.ecr.aws
-          
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v2
 
@@ -93,6 +89,9 @@ jobs:
     needs:
       - build
     runs-on: ubuntu-latest
+    env:
+      NAMESPACE: default
+      SERVICE_NAME: frontend
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -118,3 +117,8 @@ jobs:
           cd starter/frontend/k8s
           kustomize edit set image frontend=${{ secrets.ECR_FRONTEND_REPO }}:${{ github.sha }}
           kustomize build | kubectl apply -f -
+
+      - name: Retrieve Frontend Service URL
+        run: |
+          FRONTEND_URL=$(kubectl get svc -n $NAMESPACE $SERVICE_NAME -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          echo "Frontend Service is accessible at: http://$FRONTEND_URL"
